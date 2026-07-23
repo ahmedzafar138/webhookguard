@@ -32,8 +32,21 @@ This document serves as the single source of truth for the WebhookGuard project 
 ---
 
 ## Data Models (MongoDB schemas)
-*   **`events` collection**: *Not yet built* (Expected fields: `event_id`, `type`, `received_at`, `acknowledged_at`, `processed`, `expected_state_change`, `actual_state_change`, `drift_detected`).
-*   **`subscriptions` collection**: *Not yet built* (Expected fields: `customer_id`, `status`, `plan_value`, `last_updated_at`, `at_risk`).
+*   **`events` collection**:
+    *   `event_id`: string (Stripe event ID, unique key)
+    *   `type`: string (Stripe event type, e.g. `invoice.payment_failed`)
+    *   `received_at`: Date (Ingestion timestamp)
+    *   `acknowledged_at`: Date (Worker execution completion timestamp)
+    *   `processed`: boolean (true if processed by worker)
+    *   `expected_state_change`: string (Target status change pattern, e.g. `subscription.status -> past_due`)
+    *   `actual_state_change`: string | null (Observed status change applied to DB, or `null` if skipped due to drift)
+    *   `drift_detected`: boolean | null (Flags state misalignment; updated by reconciliation service, default `null`)
+*   **`subscriptions` collection**:
+    *   `customer_id`: string (Customer reference key)
+    *   `status`: string (Current subscription state: `active`, `past_due`, `unpaid`, `canceled`)
+    *   `plan_value`: number (Monthly subscription fee in USD)
+    *   `last_updated_at`: Date (Timestamp of last update)
+    *   `at_risk`: boolean (true if subscription has payment issues, e.g. status is `past_due`)
 *   **`reconciliation_runs` collection**: *Not yet built* (Expected fields: `drift_count`, `drift_rate`, `dollars_at_risk`, `timestamp`).
 
 ---
@@ -53,11 +66,15 @@ This document serves as the single source of truth for the WebhookGuard project 
 
 ### Next.js Dashboard / General APIs
 *   **GET `/api/events`**:
-    *   *Description*: Paginated listing of events for dashboard event log.
-    *   *Status*: Not yet built.
+    *   *Description*: Paginated listing of webhook events (newest first) for dashboard event log.
+    *   *Query Parameters*: `page` (default `1`), `limit` (default `50`)
+    *   *Response*: `{ data: EventDocument[], pagination: { total: number, page: number, limit: number, pages: number } }`
+    *   *Status*: Built.
 *   **GET `/api/subscriptions`**:
-    *   *Description*: List of current customers and subscription statuses.
-    *   *Status*: Not yet built.
+    *   *Description*: Paginated list of current customer subscriptions and active statuses.
+    *   *Query Parameters*: `page` (default `1`), `limit` (default `50`)
+    *   *Response*: `{ data: SubscriptionDocument[], pagination: { total: number, page: number, limit: number, pages: number } }`
+    *   *Status*: Built.
 
 ### Django Reconciliation Service
 *   **GET `/api/reconciliation/latest`**:
@@ -108,8 +125,8 @@ This document serves as the single source of truth for the WebhookGuard project 
 ## Current Build Status
 - [x] **Phase 0** — Repo scaffold + knowledge base setup
 - [x] **Phase B1** — Express webhook receiver + Redis idempotency
-- [ ] **Phase B2** — MongoDB schemas + event log query APIs (Next)
-- [ ] **Phase B3** — Django reconciliation service
+- [x] **Phase B2** — MongoDB schemas + event log query APIs
+- [ ] **Phase B3** — Django reconciliation service (Next)
 - [ ] **Phase B4** — GitHub Actions scheduler
 - [ ] **Phase B5** — SigNoz instrumentation (backend traces/metrics)
 - [ ] **Phase I1** — SigNoz via Foundry + local orchestration (docker-compose)

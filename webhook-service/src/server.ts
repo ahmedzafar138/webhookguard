@@ -2,7 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
 import { connection, webhookQueue } from './queue';
-import { connectDb } from './db';
+import { connectDb, getDb } from './db';
 
 dotenv.config();
 
@@ -119,12 +119,70 @@ app.post('/webhooks/stripe', async (req: any, res) => {
   }
 });
 
+// GET /api/events - Retrieve webhook event history (paginated)
+app.get('/api/events', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page as string, 10) || 1;
+    const limit = parseInt(req.query.limit as string, 10) || 50;
+    const skip = (page - 1) * limit;
+
+    const db = getDb();
+    const events = await db.collection('events').find({}).toArray();
+    const total = events.length;
+    // Show newest first
+    const paginated = [...events].reverse().slice(skip, skip + limit);
+
+    return res.status(200).json({
+      data: paginated,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (err: any) {
+    console.error('[API Error] Failed to fetch events:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/subscriptions - Retrieve active customer subscriptions (paginated)
+app.get('/api/subscriptions', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page as string, 10) || 1;
+    const limit = parseInt(req.query.limit as string, 10) || 50;
+    const skip = (page - 1) * limit;
+
+    const db = getDb();
+    const subscriptions = await db.collection('subscriptions').find({}).toArray();
+    const total = subscriptions.length;
+    const paginated = subscriptions.slice(skip, skip + limit);
+
+    return res.status(200).json({
+      data: paginated,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (err: any) {
+    console.error('[API Error] Failed to fetch subscriptions:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 async function bootstrap() {
   await connectDb();
 
   if (process.env.MOCK_SERVICES === 'true') {
     console.log('[Receiver] Mock mode active. Starting worker inline...');
     await import('./worker');
+    console.log('[Receiver] Auto-seeding mock database...');
+    const { seedData } = await import('./seed');
+    await seedData();
   }
 
   app.listen(PORT, () => {

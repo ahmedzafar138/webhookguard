@@ -56,6 +56,46 @@ class MockCollection {
     return { acknowledged: true, modifiedCount: 0, upsertedCount: 0 };
   }
 
+  async insertMany(docs: any[]) {
+    const insertedIds: { [key: number]: string } = {};
+    docs.forEach((doc, index) => {
+      const newDoc = { ...doc, _id: doc._id || `mock_${Math.random().toString(36).substr(2, 9)}` };
+      MockCollection.stores[this.name].push(newDoc);
+      insertedIds[index] = newDoc._id;
+    });
+    console.log(`[Mock MongoDB] [${this.name}] Inserted ${docs.length} documents.`);
+    return { acknowledged: true, insertedCount: docs.length, insertedIds };
+  }
+
+  async countDocuments(query: any = {}) {
+    const store = MockCollection.stores[this.name];
+    const results = store.filter(item => {
+      for (const key in query) {
+        if (item[key] !== query[key]) return false;
+      }
+      return true;
+    });
+    return results.length;
+  }
+
+  async deleteMany(query: any = {}) {
+    const store = MockCollection.stores[this.name];
+    const initialCount = store.length;
+    if (Object.keys(query).length === 0) {
+      MockCollection.stores[this.name] = [];
+    } else {
+      MockCollection.stores[this.name] = store.filter(item => {
+        for (const key in query) {
+          if (item[key] === query[key]) return false;
+        }
+        return true;
+      });
+    }
+    const deletedCount = initialCount - MockCollection.stores[this.name].length;
+    console.log(`[Mock MongoDB] [${this.name}] Deleted ${deletedCount} documents.`);
+    return { acknowledged: true, deletedCount };
+  }
+
   find(query: any = {}) {
     const store = MockCollection.stores[this.name];
     const results = store.filter(item => {
