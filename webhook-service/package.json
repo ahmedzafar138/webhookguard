@@ -1,0 +1,25 @@
+{
+  "name": "webhook-service",
+  "version": "1.0.0",
+  "description": "WebhookGuard Webhook Receiver and Queue Worker",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "tsnd --respawn --transpile-only src/server.ts",
+    "worker": "tsnd --respawn --transpile-only src/worker.ts"
+  },
+  "dependencies": {
+    "bullmq": "^5.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "ioredis": "^5.4.1",
+    "mongodb": "^6.8.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.9",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.5.2"
+  }
+}
